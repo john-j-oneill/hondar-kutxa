@@ -1,9 +1,22 @@
 # AI one-shots
 
 Small, self-contained projects written by AI coding assistants, mostly from a
-single prompt, with at most a few follow-up corrections. Each one lives in its
-own folder; this file records the prompt each started from, the model that
-wrote it, and what it cost where that's known.
+single prompt, with at most a few follow-up corrections.
+
+## Layout
+
+Each project gets a folder named after what it is, and each attempt at it
+gets its own subfolder named after the tool that produced it:
+
+```
+<project>/
+  <tool>/
+    README.md       model, hardware, follow-up prompts, run stats
+    index.html      the attempt itself
+    screenshot.png
+```
+
+This file records the shared prompt for each project and compares the attempts.
 
 ## Running them
 
@@ -11,7 +24,7 @@ Most are static web pages. Some browsers won't load ES modules from `file://`,
 so serve the folder you want to view, for example:
 
 ```sh
-npx serve ai-oneshots/pagoda-garden
+npx serve ai-oneshots/pagoda-garden/Claude-Code
 ```
 
 ## Projects
@@ -30,7 +43,7 @@ with a wooden bridge and stone lanterns, on a grass island lit by a sunset.
 > with shadows, slowly auto-rotating orbit camera. Only standard Three.js
 > materials, no custom shaders. Keep it simple and make it work.
 
-| | Claude Code ([`index.html`](pagoda-garden/index.html)) | Strata ([`Strata/`](pagoda-garden/Strata/)) |
+| | [Claude Code](pagoda-garden/Claude-Code/) | [Strata](pagoda-garden/Strata/) |
 | --- | --- | --- |
 | Model | Claude Opus 5.5, medium effort | qwen3.8-flash-next-iq3_xxs (local) |
 | Runs on | Claude Code 2.1.291, cloud session on claude.ai | Strata engine v0.1.40, TITAN V + GTX 1080 Ti |
@@ -43,15 +56,11 @@ with a wooden bridge and stone lanterns, on a grass island lit by a sunset.
 
 <table>
 <tr>
-<td><img src="pagoda-garden/screenshot.png" alt="Claude Code pagoda garden"></td>
+<td><img src="pagoda-garden/Claude-Code/screenshot.png" alt="Claude Code pagoda garden"></td>
 <td><img src="pagoda-garden/Strata/screenshot.png" alt="Strata pagoda garden"></td>
 </tr>
 <tr><td align="center">Claude Code</td><td align="center">Strata</td></tr>
 </table>
 
-Claude Code's token and cost figures are cumulative for the whole session, so
-they also include moving the project into this folder and writing these
-READMEs, which were a small share of the total. Most of the cache-read volume
-comes from re-sending the conversation on each tool call, including the
-screenshots taken to check the render. See [`Strata/README.md`](pagoda-garden/Strata/README.md)
-for the Strata follow-up prompts and per-turn stats.
+See each attempt's README for its follow-up prompts and full run stats.
+Claude Code's figures cover the whole session, including the repo housekeeping.
