@@ -19,9 +19,7 @@ npx serve ai-oneshots/pagoda-garden
 ### [`pagoda-garden/`](pagoda-garden/)
 
 Voxel Japanese garden in Three.js: a 5-tier pagoda, torii, cherry trees, a pond
-with an arched bridge and stone lanterns, on a grass island lit by a sunset.
-
-![Pagoda garden](pagoda-garden/screenshot.png)
+with a wooden bridge and stone lanterns, on a grass island lit by a sunset.
 
 **Prompt:**
 
@@ -32,23 +30,28 @@ with an arched bridge and stone lanterns, on a grass island lit by a sunset.
 > with shadows, slowly auto-rotating orbit camera. Only standard Three.js
 > materials, no custom shaders. Keep it simple and make it work.
 
-**Follow-ups:** one. *"The bridge is over the largest dim of the pond, which is
-silly. And while there's a path the bridge doesn't connect to it on either
-end."*
+| | Claude Code ([`index.html`](pagoda-garden/index.html)) | Strata ([`Strata/`](pagoda-garden/Strata/)) |
+| --- | --- | --- |
+| Model | Claude Opus 5.5, medium effort | qwen3.8-flash-next-iq3_xxs (local) |
+| Runs on | Claude Code 2.1.291, cloud session on claude.ai | Strata engine v0.1.40, TITAN V + GTX 1080 Ti |
+| Follow-ups | 1, a layout fix: the bridge crossed the pond the long way and didn't meet the path | 3, bug fixes: stuck on the loading screen in Firefox, then two runtime errors |
+| Wall time | ~11 min, ~4 to the first version | ~71 min, ~60 of it generating |
+| Output tokens | 22,030 | 106,157 |
+| Input tokens | 566 uncached, 64,698 cache writes, 2,555,004 cache reads | 92,410 prompt, 54,795 of them reused |
+| Cost | ~$1.47 (API-equivalent, as reported by the session) | none (local hardware) |
+| Size | 293 lines, ~11 KB | 1,000 lines, ~49 KB, with an on-screen control panel and HUD |
 
-| | |
-| --- | --- |
-| Model | Claude Opus 5.5, medium effort |
-| Harness | Claude Code 2.1.291, cloud session on claude.ai |
-| Date | 2026-10-06 |
-| Wall time | ~4 min to the first commit, ~11 min including the bridge fix |
-| Output tokens | 22,030 |
-| Input tokens | 566 uncached, 64,698 cache writes, 2,555,004 cache reads |
-| Peak context | ~107k tokens |
-| Cost | ~$1.47 (API-equivalent, as reported by the session) |
+<table>
+<tr>
+<td><img src="pagoda-garden/screenshot.png" alt="Claude Code pagoda garden"></td>
+<td><img src="pagoda-garden/Strata/screenshot.png" alt="Strata pagoda garden"></td>
+</tr>
+<tr><td align="center">Claude Code</td><td align="center">Strata</td></tr>
+</table>
 
-The token and cost figures are cumulative for the whole session, so they also
-include moving the project into this folder and writing these READMEs, which
-were a small share of the total. Most of the cache-read volume comes from
-re-sending the conversation on each tool call, including the screenshots taken
-to check the render.
+Claude Code's token and cost figures are cumulative for the whole session, so
+they also include moving the project into this folder and writing these
+READMEs, which were a small share of the total. Most of the cache-read volume
+comes from re-sending the conversation on each tool call, including the
+screenshots taken to check the render. See [`Strata/README.md`](pagoda-garden/Strata/README.md)
+for the Strata follow-up prompts and per-turn stats.
