@@ -8,7 +8,8 @@ has to be built on the server. This folder has:
 - `build.sh`: downloads Strata and builds `strata:latest` on the server
 - `my-strata.xml`: an Unraid container template that runs that image
 
-Target box: RTX 5060 Ti 16 GB (sm_120), 64 GB RAM, 512 GB NVMe cache pool.
+Target box: RTX 5060 Ti 16 GB (sm_120), 64 GB DDR4, 512 GB NVMe cache pool,
+also running Plex. Running there with IQ3_XXS.
 
 ## Storage: keep the NVMe as the cache pool
 
@@ -85,18 +86,32 @@ Then *Docker → Add Container → Template: strata*, check the values, and
 - `/data` → `/mnt/cache/appdata/strata`
 - host port **8642** → container port 8080 (see [Port](#port))
 - an **API key**, required (see [API key](#api-key))
-- `MODEL=IQ2_XS`, `FAMILY=qwen`, `CONTEXT=32768`. IQ2_XS is upstream's pick
-  for 64 GB. IQ3_XXS / IQ3_S also fit, but they're slower and leave less RAM
-  for Unraid and the other containers.
+- `MODEL=IQ3_XXS`, `FAMILY=qwen`, `CONTEXT=32768`. See
+  [Which size](#which-size).
 - `VISION=cpu`: pictures work, but the encoder runs on the CPU, so no VRAM
   goes to it. On the GPU (`yes`), ~1.4 GB of VRAM is held back for it,
   leaving fewer experts cached and making text a few % slower. The price on
   the CPU is ~3–13 s per picture (more for big or detailed images), and
   about 1 GB of RAM for the encoder. `no` skips it entirely.
 
-The first start downloads ~70 GB, then loads 35–55 GB into RAM (1–3 min).
-Follow it in the container log. The container shows *healthy* once the model
-is up. Then open `http://<unraid-ip>:8642`.
+Leave *Reinstall* at `0`. The first start notices there's no config on
+`/data` and runs setup by itself. It downloads ~83 GB (model, MTP layer,
+vision encoder), prepares the pack, then loads 35–55 GB into RAM (1–3 min).
+The container shows *healthy* once the model is up. Then open
+`http://<unraid-ip>:8642`.
+
+**The log goes quiet during the download.** That's expected. Strata redraws
+its progress line in place with `\r` and only ends it when a file is done.
+Docker's log shows only finished lines, and the first shard is ~40 GB. To see
+it moving:
+
+```sh
+watch -n 5 du -sh /mnt/cache/appdata/strata/models/IQ3_XXS/
+```
+
+A growing `*.gguf.part` means it's working. On gigabit it all takes ~12
+minutes. If nothing grows, test the container's connection:
+`docker exec strata curl -sI https://huggingface.co | head -1`.
 
 If *Apply* fails trying to pull `strata:latest` from Docker Hub, run it
 from the terminal instead (same settings):
@@ -107,9 +122,41 @@ docker run -d --name strata --restart unless-stopped \
   --ulimit memlock=-1:-1 -p 8642:8080 \
   -v /mnt/cache/appdata/strata:/data \
   -e API_KEY=<your key> \
-  -e MODEL=IQ2_XS -e FAMILY=qwen -e CONTEXT=32768 -e VISION=cpu \
+  -e MODEL=IQ3_XXS -e FAMILY=qwen -e CONTEXT=32768 -e VISION=cpu \
   strata:latest
 ```
+
+## Which size
+
+The size is mostly a RAM budget. Strata's RAM is locked, so Unraid can't
+reclaim it under pressure. A container that runs short gets killed; it
+doesn't just slow down.
+
+| | IQ2_XS | IQ3_XXS |
+| --- | --- | --- |
+| RAM Strata takes | ~42 GB | ~49 GB |
+| Left of 64 GB | ~22 GB | ~15 GB |
+| Decode (upstream's RTX 5070 box) | 79 tok/s | 62 tok/s |
+| Download | 68 GB | 76 GB |
+| Upstream's quality label | better | great |
+
+This box used ~3.6 GB before Strata (Unraid + Plex), so IQ3_XXS fits with
+room to spare. On a busier server, take IQ2_XS. DDR4 probably widens the speed gap a
+little, because IQ3_XXS does more of its work on the CPU. Switching later
+only needs a different *Model size*: both fit on the NVMe side by side.
+
+## Sharing the GPU with Plex
+
+If Plex also uses the 5060 Ti for hardware transcoding (`--runtime=nvidia` on
+the Plex container), it competes with Strata for VRAM. Strata fills the card
+with its expert cache, so a transcode that starts later can fail or fall
+back to the CPU. Once Strata is up, go to *About → Model settings* in its web
+page, set **VRAM reserve** to ~`1536` MiB, and restart the container. Each
+transcode needs a few hundred MB. Text gets slightly slower, because fewer
+experts fit on the card.
+
+Plex transcoding to RAM (`/tmp` or `/dev/shm`) also eats into the headroom
+in the table above.
 
 ## Port
 
@@ -166,5 +213,14 @@ otherwise.
 - **Another model:** change *Model size* / *Model family*. A model that isn't
   on `/data` yet gets downloaded (another ~70 GB). Models already there just
   switch over.
+- **Keep a copy** on the array, in case the upstream files move or vanish.
+  Stop the container first, and make sure the `backups` share is array-only:
+  ```sh
+  rsync -a --info=progress2 /mnt/cache/appdata/strata/ /mnt/user/backups/strata/data/
+  docker save strata:latest | gzip > /mnt/user/backups/strata/strata-image.tar.gz
+  tar czf /mnt/user/backups/strata/strata-src.tar.gz -C /mnt/cache/appdata strata-src
+  ```
+  To restore, copy `data/` back and `docker load < strata-image.tar.gz`. The
+  `.done` marks come along, so setup downloads nothing.
 - Unraid's "update available" check shows *not available* for this container,
   because the image is local. That's expected.
