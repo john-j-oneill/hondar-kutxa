@@ -85,9 +85,14 @@ Then *Docker → Add Container → Template: strata*, check the values, and
 - `/data` → `/mnt/cache/appdata/strata`
 - host port **8642** → container port 8080 (see [Port](#port))
 - an **API key**, required (see [API key](#api-key))
-- `MODEL=IQ2_XS`, `FAMILY=qwen`, `CONTEXT=32768`, `VISION=no`. IQ2_XS is
-  upstream's pick for 64 GB. IQ3_XXS / IQ3_S also fit, but they're slower
-  and leave less RAM for Unraid and the other containers.
+- `MODEL=IQ2_XS`, `FAMILY=qwen`, `CONTEXT=32768`. IQ2_XS is upstream's pick
+  for 64 GB. IQ3_XXS / IQ3_S also fit, but they're slower and leave less RAM
+  for Unraid and the other containers.
+- `VISION=cpu`: pictures work, but the encoder runs on the CPU, so no VRAM
+  goes to it. On the GPU (`yes`), ~1.4 GB of VRAM is held back for it,
+  leaving fewer experts cached and making text a few % slower. The price on
+  the CPU is ~3–13 s per picture (more for big or detailed images), and
+  about 1 GB of RAM for the encoder. `no` skips it entirely.
 
 The first start downloads ~70 GB, then loads 35–55 GB into RAM (1–3 min).
 Follow it in the container log. The container shows *healthy* once the model
@@ -102,7 +107,7 @@ docker run -d --name strata --restart unless-stopped \
   --ulimit memlock=-1:-1 -p 8642:8080 \
   -v /mnt/cache/appdata/strata:/data \
   -e API_KEY=<your key> \
-  -e MODEL=IQ2_XS -e FAMILY=qwen -e CONTEXT=32768 -e VISION=no \
+  -e MODEL=IQ2_XS -e FAMILY=qwen -e CONTEXT=32768 -e VISION=cpu \
   strata:latest
 ```
 
