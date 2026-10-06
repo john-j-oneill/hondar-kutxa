@@ -1,6 +1,8 @@
-# Pagoda garden: Strata (local model)
+# Pagoda garden: Strata, thinking high
 
-The same pagoda garden prompt, run locally in Strata on an older desktop.
+The same pagoda garden prompt, run locally in Strata on an older desktop with
+thinking set to high. See [`../Strata-thinking-low/`](../Strata-thinking-low/)
+for the same model with thinking set to low.
 It needed three follow-up prompts to fix bugs before it ran.
 
 ![Strata pagoda garden](screenshot.png)
@@ -10,6 +12,7 @@ It needed three follow-up prompts to fix bugs before it ran.
 | | |
 | --- | --- |
 | Model | qwen3.8-flash-next-iq3_xxs |
+| Thinking | high |
 | Engine | v0.1.40 |
 | Context | 131,072 tokens |
 | KV cache | 8-bit, all in VRAM |
