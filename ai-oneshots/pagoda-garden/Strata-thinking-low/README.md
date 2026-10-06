@@ -5,6 +5,8 @@ The same pagoda garden prompt and the same model as
 to low and on a different machine. The result is much simpler, but it worked
 on the first try apart from one visual bug, and it was over ten times faster.
 
+![Strata, thinking low, pagoda garden](screenshot.png)
+
 ## Model and engine
 
 | | |

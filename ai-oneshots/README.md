@@ -54,14 +54,15 @@ with a wooden bridge and stone lanterns, on a grass island lit by a sunset.
 | Output tokens | 22,030 | 106,157 | 9,625 |
 | Input tokens | 566 uncached, 64,698 cache writes, 2,555,004 cache reads | 92,410 prompt, 54,795 of them reused | 4,073 prompt, 246 of them reused |
 | Cost | ~$1.47 (API-equivalent, as reported by the session) | none (local hardware) | none (local hardware) |
-| Size | 293 lines, ~11 KB | 1,000 lines, ~49 KB, with an on-screen control panel and HUD | TBD |
+| Size | 293 lines, ~11 KB | 1,000 lines, ~49 KB, with an on-screen control panel and HUD | 228 lines, ~7.6 KB |
 
 <table>
 <tr>
 <td><img src="pagoda-garden/Claude-Code/screenshot.png" alt="Claude Code pagoda garden"></td>
 <td><img src="pagoda-garden/Strata-thinking-high/screenshot.png" alt="Strata, thinking high, pagoda garden"></td>
+<td><img src="pagoda-garden/Strata-thinking-low/screenshot.png" alt="Strata, thinking low, pagoda garden"></td>
 </tr>
-<tr><td align="center">Claude Code</td><td align="center">Strata, thinking high</td></tr>
+<tr><td align="center">Claude Code</td><td align="center">Strata, thinking high</td><td align="center">Strata, thinking low</td></tr>
 </table>
 
 See each attempt's README for its follow-up prompts and full run stats.
