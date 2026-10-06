@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Voxel Pagoda Garden</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #ffcf94; }
+  canvas { display: block; }
+  #hint {
+    position: fixed; left: 12px; bottom: 10px; color: #5a2a12;
+    font: 12px/1.4 system-ui, sans-serif; opacity: .7; pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<div id="hint">drag to orbit &middot; scroll to zoom &middot; auto-rotating</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ---------- renderer / scene / camera ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xffcf94);          // warm sunset sky
+scene.fog = new THREE.Fog(0xffcf94, 70, 170);
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 400);
+camera.position.set(34, 24, 34);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 6, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.6;
+controls.minDistance = 18;
+controls.maxDistance = 90;
+controls.maxPolarAngle = Math.PI * 0.49;               // stay above the island
+
+// ---------- lights (warm sunset) ----------
+const sun = new THREE.DirectionalLight(0xffb066, 2.1);
+sun.position.set(-42, 26, -18);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.near = 1;
+sun.shadow.camera.far = 140;
+const s = 45;
+sun.shadow.camera.left = -s; sun.shadow.camera.right = s;
+sun.shadow.camera.top = s;   sun.shadow.camera.bottom = -s;
+sun.shadow.bias = -0.0005;
+scene.add(sun);
+
+const hemi = new THREE.HemisphereLight(0xffd9a8, 0x6b4a2a, 0.7);
+scene.add(hemi);
+
+// ---------- voxel helpers ----------
+const matCache = new Map();
+function mat(color) {
+  if (!matCache.has(color)) {
+    matCache.set(color, new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.95 }));
+  }
+  return matCache.get(color);
+}
+
+const world = new THREE.Group();
+scene.add(world);
+
+function box(x, y, z, w, h, d, color, cast = true) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color));
+  m.position.set(x, y, z);
+  m.castShadow = cast;
+  m.receiveShadow = true;
+  world.add(m);
+  return m;
+}
+
+// palette
+const C = {
+  grass: 0x4f8a3c, grassDark: 0x3f6f30, dirt: 0x6b4a2a, dirtDark: 0x54381f,
+  roof: 0x2b2b33, roofEdge: 0x1d1d24, column: 0xb3261e, columnDark: 0x8c1c16,
+  wood: 0x7a4a26, woodDark: 0x5c3719, water: 0x3f7fb0, waterDeep: 0x2f5f88,
+  leaf: 0xf3a6c0, leafDark: 0xe07fa0, trunk: 0x5a3a22,
+  stone: 0x9a9a9a, stoneDark: 0x767676, stoneCap: 0x6a6a6a,
+};
+
+// ---------- pond definition (used by BOTH island + bridge) ----------
+const pond = { cx: 10, cz: 4, r: 5 };
+const inPond = (x, z) => Math.hypot(x - pond.cx, z - pond.cz) <= pond.r;
+
+// ---------- grass island (cubes, roughly circular) — skips pond cells ----------
+const R = 20;
+for (let x = -R; x <= R; x++) {
+  for (let z = -R; z <= R; z++) {
+    if (Math.hypot(x, z) > R) continue;
+    if (inPond(x, z)) continue;                 // <-- FIX: leave a hole for water
+    const g = (x + z) % 2 === 0 ? C.grass : C.grassDark;
+    box(x, -0.5, z, 1, 1, 1, g, false);         // grass top face at y = 0
+    box(x, -1.5, z, 1, 1, 1, C.dirt, false);
+    if (Math.hypot(x, z) < R - 1) box(x, -2.5, z, 1, 1, 1, C.dirtDark, false);
+  }
+}
+
+// ---------- pond water (fills the hole left above) ----------
+for (let x = -R; x <= R; x++) {
+  for (let z = -R; z <= R; z++) {
+    if (inPond(x, z)) {
+      box(x, -1.0, z, 1, 1, 1, C.water, false);     // water surface at y = -0.5
+      box(x, -2.0, z, 1, 1, 1, C.waterDeep, false);
+    }
+  }
+}
+
+// ---------- wooden bridge spanning the pond along X ----------
+for (let x = pond.cx - 6; x <= pond.cx + 6; x++) {   // x: 4..16, pond is 5..15 -> lands on grass
+  box(x, 0.4, pond.cz, 1, 0.4, 2.4, C.wood, false);  // deck floats ~0.9 above water
+}
+for (let x = pond.cx - 6; x <= pond.cx + 6; x += 2) { // railings + posts
+  box(x, 1.1, pond.cz - 1.2, 0.4, 1.4, 0.4, C.woodDark);
+  box(x, 1.1, pond.cz + 1.2, 0.4, 1.4, 0.4, C.woodDark);
+  box(x, 1.9, pond.cz - 1.2, 1.2, 0.3, 0.3, C.woodDark);
+  box(x, 1.9, pond.cz + 1.2, 1.2, 0.3, 0.3, C.woodDark);
+}
+
+// ---------- 5-tier pagoda (dark roofs, red columns) ----------
+function pagoda(px, pz) {
+  let y = 0;
+  box(px, 0.3, pz, 8, 0.6, 8, C.stone, false);
+  for (let i = 0; i < 5; i++) {
+    const body = 6 - i;
+    const roof = body + 2.5;
+    const half = body / 2 - 0.4;
+    for (const sx of [-half, half]) {
+      for (const sz of [-half, half]) {
+        box(px + sx, y + 1.5, pz + sz, 0.8, 3, 0.8, i % 2 ? C.columnDark : C.column);
+      }
+    }
+    box(px, y + 1.5, pz, body - 1.2, 2.6, body - 1.2, C.columnDark);
+    box(px, y + 3.3, pz, roof, 0.5, roof, C.roof);
+    box(px, y + 3.8, pz, roof - 1.4, 0.4, roof - 1.4, C.roofEdge);
+    y += 3.6;
+  }
+  box(px, y + 0.6, pz, 1.2, 1.2, 1.2, C.roofEdge);
+  box(px, y + 1.8, pz, 0.5, 2.0, 0.5, C.column);
+  box(px, y + 3.0, pz, 0.3, 0.8, 0.3, C.column);
+}
+pagoda(0, -8);
+
+// ---------- red torii gate ----------
+function torii(px, pz) {
+  const postH = 7, gap = 3.2;
+  for (const sx of [-gap, gap]) {
+    box(px + sx, 3.5, pz, 1.0, 7, 1.0, C.column);
+    box(px + sx, 7.1, pz, 1.2, 0.4, 1.2, C.columnDark);
+  }
+  box(px, 5.2, pz, gap * 2 + 2.4, 0.8, 1.2, C.columnDark);
+  const topW = gap * 2 + 4.2;
+  box(px, 6.4, pz, topW, 0.9, 1.4, C.column);
+  box(px, 6.9, pz, topW - 2.4, 0.7, 1.2, C.columnDark);
+  box(px - topW / 2 + 0.6, 6.8, pz, 1.2, 0.7, 1.2, C.columnDark);
+  box(px + topW / 2 - 0.6, 6.8, pz, 1.2, 0.7, 1.2, C.columnDark);
+  box(px, 5.9, pz, 0.6, 1.0, 0.6, C.columnDark);
+}
+torii(0, 14);
+
+// ---------- cherry trees ----------
+function cherry(px, pz, h = 4, r = 2.4) {
+  for (let i = 0; i < h; i++) {
+    box(px, 0.5 + i, pz, 1, 1, 1, i % 2 ? C.trunk : C.woodDark);
+  }
+  const cy = 0.5 + h;
+  for (let x = -r; x <= r; x++) {
+    for (let z = -r; z <= r; z++) {
+      for (let y = 0; y <= 2; y++) {
+        if (Math.hypot(x, z, y - 1) <= r) {
+          const c = (x + z + y) % 2 === 0 ? C.leaf : C.leafDark;
+          box(px + x, cy + y, pz + z, 1, 1, 1, c);
+        }
+      }
+    }
+  }
+}
+cherry(-11, 6, 4, 2.4);
+cherry(-13, -5, 5, 2.2);
+cherry(9, 13, 3, 2.0);
+
+// ---------- stone lanterns ----------
+function lantern(px, pz) {
+  box(px, 0.4, pz, 1.6, 0.8, 1.6, C.stoneDark);
+  box(px, 1.6, pz, 0.8, 1.6, 0.8, C.stone);
+  box(px, 2.8, pz, 1.8, 1.0, 1.8, C.stone);
+  box(px, 3.6, pz, 2.2, 0.5, 2.2, C.stoneCap);
+  box(px, 4.1, pz, 1.2, 0.5, 1.2, C.stoneCap);
+  box(px, 4.6, pz, 0.6, 0.6, 0.6, C.stoneCap);
+}
+lantern(4, 11);
+lantern(-4, 11);
+
+// ---------- resize + loop ----------
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+renderer.setAnimationLoop(() => {
+  controls.update();
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>
