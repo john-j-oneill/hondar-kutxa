@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voxel Pagoda Garden</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #2a1830; }
+  canvas { display: block; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ---------- renderer / scene / camera ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xf0a070);
+scene.fog = new THREE.Fog(0xf0a070, 70, 140);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 500);
+camera.position.set(42, 30, 42);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 6, 0);
+controls.enableDamping = true;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.6;
+controls.maxPolarAngle = Math.PI * 0.49;
+controls.minDistance = 20;
+controls.maxDistance = 110;
+
+// ---------- lights: warm sunset ----------
+scene.add(new THREE.HemisphereLight(0xffc49a, 0x4a3050, 0.9));
+
+const sun = new THREE.DirectionalLight(0xffa060, 2.6);
+sun.position.set(20, 22, 45);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+const sc = sun.shadow.camera;
+sc.left = -32; sc.right = 32; sc.top = 32; sc.bottom = -32; sc.near = 1; sc.far = 120;
+sun.shadow.bias = -0.0005;
+sun.shadow.normalBias = 0.03;
+scene.add(sun);
+
+// ---------- voxel collection ----------
+let seed = 12345;
+const rand = () => {
+  seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+  let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
+
+const solid = new Map(); // key -> {x,y,z,sx,sy,sz,color}
+const water = [];
+const glow = [];
+
+function put(x, y, z, hex, opts = {}) {
+  const { sx = 1, sy = 1, sz = 1, jitter = 0.05 } = opts;
+  const c = new THREE.Color(hex);
+  if (jitter) c.offsetHSL(0, 0, (rand() - 0.5) * jitter * 2);
+  solid.set(`${x},${y},${z}`, { x, y, z, sx, sy, sz, c });
+}
+const del = (x, y, z) => solid.delete(`${x},${y},${z}`);
+
+const C = {
+  grass: 0x6aa84f, grass2: 0x7cb85a, dirt: 0x7a5232, rock: 0x6d6a72,
+  stone: 0xa8a39a, stoneDark: 0x85807a, gravel: 0xc9bfa8,
+  red: 0xc0282a, darkRoof: 0x2b2a33, wall: 0xe8dcc0, wood: 0x6b4226,
+  gold: 0xd4a83a, trunk: 0x5a3a28, black: 0x1c1a1e,
+  pinks: [0xffd0dc, 0xffbfd0, 0xffe0e8, 0xf9a8c0],
+};
+
+// ---------- island ----------
+const R = 18;
+const inPond = (x, z) => ((x - 9) / 5.5) ** 2 + ((z - 6) / 3.6) ** 2 < 1;
+
+for (let x = -21; x <= 21; x++) {
+  for (let z = -21; z <= 21; z++) {
+    const d = Math.hypot(x, z) + Math.sin(x * 0.7) * 0.8 + Math.cos(z * 0.6) * 0.8;
+    if (d >= R) continue;
+    const depth = Math.min(8, Math.floor((R - d) * 0.6) + 2);
+    if (inPond(x, z)) {
+      water.push({ x, y: -0.1, z });
+    } else {
+      put(x, 0, z, rand() < 0.5 ? C.grass : C.grass2);
+    }
+    for (let y = -1; y >= -depth; y--) put(x, y, z, y > -3 ? C.dirt : C.rock);
+  }
+}
+
+// pond-edge rocks
+for (let x = 2; x <= 16; x++) {
+  for (let z = 1; z <= 11; z++) {
+    if (inPond(x, z)) continue;
+    const near = inPond(x + 1, z) || inPond(x - 1, z) || inPond(x, z + 1) || inPond(x, z - 1);
+    if (near && rand() < 0.35) put(x, 1, z, rand() < 0.5 ? C.stone : C.stoneDark, { sy: 0.6 });
+  }
+}
+
+// ---------- pagoda ----------
+const PX = -4, PZ = -4;
+for (let x = -6; x <= 6; x++) for (let z = -6; z <= 6; z++) put(PX + x, 1, PZ + z, C.stoneDark);
+for (let x = -5; x <= 5; x++) for (let z = -5; z <= 5; z++) put(PX + x, 2, PZ + z, C.stone);
+// front steps
+for (let x = -1; x <= 1; x++) { put(PX + x, 1, PZ + 7, C.stone); }
+
+const bodies = [4, 3, 3, 2, 2];
+let y0 = 3;
+for (let i = 0; i < 5; i++) {
+  const b = bodies[i];
+  // body: red columns at corners/midpoints, cream walls, filled core
+  for (let h = 0; h < 2; h++) {
+    for (let x = -b; x <= b; x++) {
+      for (let z = -b; z <= b; z++) {
+        const edge = Math.abs(x) === b || Math.abs(z) === b;
+        if (!edge) { if (h === 0) put(PX + x, y0 + h, PZ + z, C.wood); continue; }
+        const col = (Math.abs(x) === b && Math.abs(z) === b) || x === 0 || z === 0 ||
+                    (b >= 3 && (Math.abs(x) === 2 || Math.abs(z) === 2));
+        // doorway on the front of the ground floor
+        if (i === 0 && z === b && Math.abs(x) <= 0 && h === 0) { put(PX + x, y0 + h, PZ + z, C.black); continue; }
+        put(PX + x, y0 + h, PZ + z, col ? C.red : C.wall);
+      }
+    }
+  }
+  // roof: wide dark eave + narrower upper layer + upturned corners
+  const r1 = b + 2, r2 = b + 1;
+  for (let x = -r1; x <= r1; x++) for (let z = -r1; z <= r1; z++) put(PX + x, y0 + 2, PZ + z, C.darkRoof);
+  for (let x = -r2; x <= r2; x++) for (let z = -r2; z <= r2; z++) put(PX + x, y0 + 3, PZ + z, C.darkRoof);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    put(PX + sx * r1, y0 + 3, PZ + sz * r1, C.darkRoof);
+    put(PX + sx * r1, y0 + 4, PZ + sz * r1, C.gold, { sx: 0.5, sy: 0.5, sz: 0.5 });
+  }
+  y0 += 4;
+}
+// spire
+for (let h = 0; h < 6; h++) {
+  put(PX, y0 + h, PZ, C.gold, { sx: 0.5, sz: 0.5 });
+  if (h % 2 === 1) put(PX, y0 + h, PZ, C.gold, { sx: 1.2, sy: 0.3, sz: 1.2 });
+}
+put(PX, y0 + 6, PZ, C.gold, { sx: 0.8, sy: 0.8, sz: 0.8 });
+
+// ---------- gravel path ----------
+for (let z = PZ + 8; z <= 17; z++) {
+  for (let x = PX - 1; x <= PX + 1; x++) {
+    if (solid.has(`${x},0,${z}`)) put(x, 0, z, rand() < 0.5 ? C.gravel : C.stone);
+  }
+}
+
+// ---------- torii ----------
+const TZ = 10;
+for (const tx of [PX - 3, PX + 3]) {
+  put(tx, 1, TZ, C.black);
+  for (let y = 2; y <= 7; y++) put(tx, y, TZ, C.red, { jitter: 0.02 });
+}
+for (let x = PX - 4; x <= PX + 4; x++) put(x, 6, TZ, C.red, { jitter: 0.02 });    // nuki
+put(PX, 7, TZ, C.red, { jitter: 0.02 });                                           // gakuzuka
+for (let x = PX - 5; x <= PX + 5; x++) put(x, 8, TZ, C.red, { jitter: 0.02 });    // shimaki
+for (let x = PX - 6; x <= PX + 6; x++) put(x, 9, TZ, C.black, { jitter: 0.02 });  // kasagi
+put(PX - 6, 10, TZ, C.black); put(PX + 6, 10, TZ, C.black);                         // upturned ends
+
+// ---------- cherry trees ----------
+function cherry(cx, cz, height) {
+  for (let y = 1; y <= height; y++) put(cx, y, cz, C.trunk);
+  put(cx + 1, height - 1, cz, C.trunk); put(cx - 1, height, cz + 1, C.trunk);
+  const cy = height + 2, rad = 3.2;
+  for (let x = -4; x <= 4; x++) for (let y = -3; y <= 3; y++) for (let z = -4; z <= 4; z++) {
+    const d = Math.hypot(x, y * 1.3, z);
+    if (d > rad || (d > rad - 1 && rand() < 0.35)) continue;
+    put(cx + x, cy + y, cz + z, C.pinks[Math.floor(rand() * C.pinks.length)], { jitter: 0.03 });
+  }
+  // fallen petals on the grass
+  for (let n = 0; n < 14; n++) {
+    const x = cx + Math.round((rand() - 0.5) * 9), z = cz + Math.round((rand() - 0.5) * 9);
+    if (solid.has(`${x},0,${z}`) && !solid.has(`${x},1,${z}`))
+      put(x, 0.55, z, C.pinks[0], { sy: 0.1, jitter: 0.03 });
+  }
+}
+cherry(10, -8, 5);
+cherry(-13, 8, 4);
+cherry(-12, -12, 5);
+
+// ---------- wooden bridge over the pond (along z at x=9) ----------
+const BX = 9, Z0 = 1, Z1 = 11;
+for (let z = Z0; z <= Z1; z++) {
+  const t = (z - Z0) / (Z1 - Z0);
+  const y = 0.7 + Math.sin(Math.PI * t) * 1.4;
+  for (let x = BX - 1; x <= BX + 1; x++) put(x, y, z, C.wood, { sy: 0.35 });
+  for (const rx of [BX - 1.6, BX + 1.6]) {
+    if ((z - Z0) % 2 === 0) put(rx, y + 0.6, z, C.red, { sx: 0.3, sy: 1.2, sz: 0.3, jitter: 0.02 });
+    put(rx, y + 1.15, z, C.red, { sx: 0.25, sy: 0.25, sz: 1.0, jitter: 0.02 });
+  }
+}
+
+// ---------- stone lanterns ----------
+const lanternLights = [];
+function lantern(x, z) {
+  put(x, 1, z, C.stoneDark, { sx: 1.4, sz: 1.4, jitter: 0 });
+  put(x, 2, z, C.stone, { sx: 0.6, sz: 0.6 });
+  put(x, 2.9, z, C.stone, { sx: 1.2, sy: 0.3, sz: 1.2 });
+  glow.push({ x, y: 3.45, z });
+  put(x, 4.0, z, C.stoneDark, { sx: 1.8, sy: 0.4, sz: 1.8 });
+  put(x, 4.4, z, C.stone, { sx: 0.9, sy: 0.4, sz: 0.9 });
+  put(x, 4.75, z, C.stone, { sx: 0.4, sy: 0.4, sz: 0.4 });
+  const l = new THREE.PointLight(0xffb050, 6, 9, 1.5);
+  l.position.set(x, 3.5, z);
+  scene.add(l);
+  lanternLights.push(l);
+}
+lantern(PX - 3, 14);
+lantern(PX + 3, 14);
+lantern(15, 0);
+
+// ---------- build instanced meshes ----------
+const box = new THREE.BoxGeometry(1, 1, 1);
+const m4 = new THREE.Matrix4(), pos = new THREE.Vector3(), quat = new THREE.Quaternion(), scl = new THREE.Vector3();
+
+const list = [...solid.values()];
+const solidMesh = new THREE.InstancedMesh(box, new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0 }), list.length);
+list.forEach((v, i) => {
+  m4.compose(pos.set(v.x, v.y, v.z), quat, scl.set(v.sx, v.sy, v.sz));
+  solidMesh.setMatrixAt(i, m4);
+  solidMesh.setColorAt(i, v.c);
+});
+solidMesh.castShadow = solidMesh.receiveShadow = true;
+scene.add(solidMesh);
+
+const waterMesh = new THREE.InstancedMesh(box,
+  new THREE.MeshStandardMaterial({ color: 0x3f7fa8, roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.8 }),
+  water.length);
+water.forEach((v, i) => {
+  m4.compose(pos.set(v.x, v.y, v.z), quat, scl.set(1, 0.8, 1));
+  waterMesh.setMatrixAt(i, m4);
+});
+waterMesh.receiveShadow = true;
+scene.add(waterMesh);
+
+const glowMesh = new THREE.InstancedMesh(box,
+  new THREE.MeshStandardMaterial({ color: 0xffd080, emissive: 0xffa040, emissiveIntensity: 1.6 }),
+  glow.length);
+glow.forEach((v, i) => {
+  m4.compose(pos.set(v.x, v.y, v.z), quat, scl.set(0.8, 0.8, 0.8));
+  glowMesh.setMatrixAt(i, m4);
+});
+scene.add(glowMesh);
+
+// ---------- animate ----------
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+  waterMesh.position.y = Math.sin(t * 1.2) * 0.04;
+  lanternLights.forEach((l, i) => { l.intensity = 6 + Math.sin(t * 7 + i * 2) * 0.6; });
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
