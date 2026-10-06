@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>strata</Name>
+  <Repository>strata:latest</Repository>
+  <Registry>https://github.com/Niko1221/Strata</Registry>
+  <Network>bridge</Network>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/Niko1221/Strata/issues</Support>
+  <Project>https://github.com/Niko1221/Strata</Project>
+  <Overview>Strata runs Qwen3.8-Flash-Next locally on one NVIDIA card. Web UI plus OpenAI- and Anthropic-compatible API (host port 8642 by default). The image is built locally with build.sh; the first start downloads the ~70 GB model into the data path.</Overview>
+  <Category>Tools:</Category>
+  <WebUI>http://[IP]:[PORT:8080]/</WebUI>
+  <ExtraParams>--runtime=nvidia --ulimit memlock=-1:-1</ExtraParams>
+  <Requires>Nvidia Driver plugin with driver 580 or newer. Build the image first: bash build.sh</Requires>
+  <Config Name="Web UI / API port" Target="8080" Default="8642" Mode="tcp" Description="Host port for the Strata app and API (/v1). The container always listens on 8080 inside; change only this host side." Type="Port" Display="always" Required="true" Mask="false">8642</Config>
+  <Config Name="Model data" Target="/data" Default="/mnt/cache/appdata/strata" Mode="rw" Description="Model, pack, MTP layer and config (~80 GB). Keep it on the NVMe pool: use the /mnt/cache path, not /mnt/user." Type="Path" Display="always" Required="true" Mask="false">/mnt/cache/appdata/strata</Config>
+  <Config Name="Model size" Target="MODEL" Default="IQ2_XS" Mode="" Description="IQ2_XS (upstream default, ~42 GB RAM), Q2_0 (fastest), IQ3_XXS (~49 GB RAM, this box), IQ3_S (best, slowest)" Type="Variable" Display="always" Required="true" Mask="false">IQ3_XXS</Config>
+  <Config Name="Model family" Target="FAMILY" Default="qwen" Mode="" Description="qwen, coder or swift" Type="Variable" Display="always" Required="true" Mask="false">qwen</Config>
+  <Config Name="Context" Target="CONTEXT" Default="32768" Mode="" Description="Tokens the model keeps in mind" Type="Variable" Display="always" Required="true" Mask="false">32768</Config>
+  <Config Name="Vision" Target="VISION" Default="cpu" Mode="" Description="cpu (encoder in RAM, ~3-13 s per picture, no VRAM), yes (GPU: fast, costs ~1.4 GB VRAM) or no" Type="Variable" Display="always" Required="true" Mask="false">cpu</Config>
+  <Config Name="API key" Target="API_KEY" Default="" Mode="" Description="Required: other PCs connect over the network. Generate with: openssl rand -hex 24. Set it before the first start (or use Reinstall to change it later)." Type="Variable" Display="always" Required="true" Mask="true"></Config>
+  <Config Name="Reinstall" Target="REINSTALL" Default="0" Mode="" Description="1 re-runs setup to apply changed Context / Vision / API key. Set back to 0 afterwards." Type="Variable" Display="advanced" Required="false" Mask="false">0</Config>
+  <Config Name="NVIDIA_VISIBLE_DEVICES" Target="NVIDIA_VISIBLE_DEVICES" Default="all" Mode="" Description="all, or the GPU UUID from the Nvidia Driver plugin page" Type="Variable" Display="advanced" Required="true" Mask="false">all</Config>
+  <Config Name="NVIDIA_DRIVER_CAPABILITIES" Target="NVIDIA_DRIVER_CAPABILITIES" Default="compute,utility" Mode="" Description="" Type="Variable" Display="advanced" Required="true" Mask="false">compute,utility</Config>
+</Container>
