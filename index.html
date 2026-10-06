@@ -92,7 +92,16 @@ const C = {
 
 // ---------- island ----------
 const R = 18;
-const inPond = (x, z) => ((x - 9) / 5.5) ** 2 + ((z - 6) / 3.6) ** 2 < 1;
+const PX = -4, PZ = -4;                 // pagoda centre
+// long, narrow pond running north-south; the bridge crosses its narrow (x) width at z = 4
+const POND = { x: 9, z: 4, rx: 3.2, rz: 6 };
+const inPond = (x, z) => ((x - POND.x) / POND.rx) ** 2 + ((z - POND.z) / POND.rz) ** 2 < 1;
+const BZ = POND.z, BX0 = 4, BX1 = 14;   // bridge row and land-to-land span
+const isPath = (x, z) =>
+  (x >= PX - 1 && x <= PX + 1 && z >= PZ + 8 && z <= 17) ||        // torii -> pagoda
+  (Math.abs(z - BZ) <= 1 && x >= PX + 2 && x <= BX0) ||            // junction -> bridge west end
+  (Math.abs(z - BZ) <= 1 && x >= BX1 && x <= 15) ||                // bridge east end
+  (x >= 13 && x <= 15 && z >= -6 && z <= BZ + 1);                  // east bank -> cherry tree
 
 for (let x = -21; x <= 21; x++) {
   for (let z = -21; z <= 21; z++) {
@@ -109,16 +118,15 @@ for (let x = -21; x <= 21; x++) {
 }
 
 // pond-edge rocks
-for (let x = 2; x <= 16; x++) {
-  for (let z = 1; z <= 11; z++) {
-    if (inPond(x, z)) continue;
+for (let x = 3; x <= 15; x++) {
+  for (let z = -4; z <= 12; z++) {
+    if (inPond(x, z) || isPath(x, z)) continue;
     const near = inPond(x + 1, z) || inPond(x - 1, z) || inPond(x, z + 1) || inPond(x, z - 1);
     if (near && rand() < 0.35) put(x, 1, z, rand() < 0.5 ? C.stone : C.stoneDark, { sy: 0.6 });
   }
 }
 
 // ---------- pagoda ----------
-const PX = -4, PZ = -4;
 for (let x = -6; x <= 6; x++) for (let z = -6; z <= 6; z++) put(PX + x, 1, PZ + z, C.stoneDark);
 for (let x = -5; x <= 5; x++) for (let z = -5; z <= 5; z++) put(PX + x, 2, PZ + z, C.stone);
 // front steps
@@ -160,9 +168,9 @@ for (let h = 0; h < 6; h++) {
 put(PX, y0 + 6, PZ, C.gold, { sx: 0.8, sy: 0.8, sz: 0.8 });
 
 // ---------- gravel path ----------
-for (let z = PZ + 8; z <= 17; z++) {
-  for (let x = PX - 1; x <= PX + 1; x++) {
-    if (solid.has(`${x},0,${z}`)) put(x, 0, z, rand() < 0.5 ? C.gravel : C.stone);
+for (let x = -21; x <= 21; x++) {
+  for (let z = -21; z <= 21; z++) {
+    if (isPath(x, z) && solid.has(`${x},0,${z}`)) put(x, 0, z, rand() < 0.5 ? C.gravel : C.stone);
   }
 }
 
@@ -199,15 +207,15 @@ cherry(10, -8, 5);
 cherry(-13, 8, 4);
 cherry(-12, -12, 5);
 
-// ---------- wooden bridge over the pond (along z at x=9) ----------
-const BX = 9, Z0 = 1, Z1 = 11;
-for (let z = Z0; z <= Z1; z++) {
-  const t = (z - Z0) / (Z1 - Z0);
+// ---------- arched wooden bridge across the pond's narrow width (along x) ----------
+for (let x = BX0; x <= BX1; x++) {
+  const t = (x - BX0) / (BX1 - BX0);
   const y = 0.7 + Math.sin(Math.PI * t) * 1.4;
-  for (let x = BX - 1; x <= BX + 1; x++) put(x, y, z, C.wood, { sy: 0.35 });
-  for (const rx of [BX - 1.6, BX + 1.6]) {
-    if ((z - Z0) % 2 === 0) put(rx, y + 0.6, z, C.red, { sx: 0.3, sy: 1.2, sz: 0.3, jitter: 0.02 });
-    put(rx, y + 1.15, z, C.red, { sx: 0.25, sy: 0.25, sz: 1.0, jitter: 0.02 });
+  for (let z = BZ - 1; z <= BZ + 1; z++) put(x, y, z, C.wood, { sy: 0.35 });
+  if (x === BX0 || x === BX1) continue;  // no rails on the landing steps
+  for (const rz of [BZ - 1.6, BZ + 1.6]) {
+    if ((x - BX0) % 2 === 1) put(x, y + 0.6, rz, C.red, { sx: 0.3, sy: 1.2, sz: 0.3, jitter: 0.02 });
+    put(x, y + 1.15, rz, C.red, { sx: 1.0, sy: 0.25, sz: 0.25, jitter: 0.02 });
   }
 }
 
@@ -228,7 +236,7 @@ function lantern(x, z) {
 }
 lantern(PX - 3, 14);
 lantern(PX + 3, 14);
-lantern(15, 0);
+lantern(11, -3);
 
 // ---------- build instanced meshes ----------
 const box = new THREE.BoxGeometry(1, 1, 1);
