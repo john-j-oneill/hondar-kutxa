@@ -48,7 +48,7 @@ with a wooden bridge and stone lanterns, on a grass island lit by a sunset.
 | | [Claude Code](pagoda-garden/Claude-Code/) | [Strata, thinking high](pagoda-garden/Strata-thinking-high/) | [Strata, thinking low](pagoda-garden/Strata-thinking-low/) |
 | --- | --- | --- | --- |
 | Model | Claude Opus 5.5, medium effort | qwen3.8-flash-next-iq3_xxs (local), thinking high | same, thinking low |
-| Runs on | Claude Code 2.1.291, cloud session on claude.ai | Strata engine v0.1.40, TITAN V + GTX 1080 Ti | Strata, different machine (TBD) |
+| Runs on | Claude Code 2.1.291, cloud session on claude.ai | Strata engine v0.1.40, TITAN V + GTX 1080 Ti | Strata, RTX 5060 Ti 16 GB (Unraid server) |
 | Follow-ups | 1, a layout fix: the bridge crossed the pond the long way and didn't meet the path | 3, bug fixes: stuck on the loading screen in Firefox, then two runtime errors | 1, a layout fix: the bridge wasn't over any water |
 | Wall time | ~11 min, ~4 to the first version | ~71 min, ~60 of it generating | ~7 min, ~3.4 of it generating |
 | Output tokens | 22,030 | 106,157 | 9,625 |

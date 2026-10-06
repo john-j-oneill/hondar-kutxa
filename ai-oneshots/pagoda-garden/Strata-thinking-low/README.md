@@ -17,7 +17,12 @@ on the first try apart from one visual bug, and it was over ten times faster.
 
 ## This PC
 
-TBD
+| | |
+| --- | --- |
+| Machine | Unraid server ("Wendy") |
+| GPU | NVIDIA GeForce RTX 5060 Ti, 16 GB, PCIe Gen3 x8 |
+| CPU | Intel Core i7-9700K @ 3.60 GHz |
+| RAM | 64 GiB DDR4 |
 
 ## Follow-up prompts
 
