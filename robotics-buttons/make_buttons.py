@@ -330,6 +330,10 @@ def main():
         svg = page_svg(chunk, paper, cfg.cut, slots)
         (out / f"page-{n}.svg").write_text(svg, encoding="utf-8")
         writer.append(io.BytesIO(cairosvg.svg2pdf(bytestring=svg.encode())))
+    # cairo embeds the logo once per button; merge the copies. Two passes,
+    # because the first only merges the transparency masks the images point to
+    for _ in range(2):
+        writer.compress_identical_objects()
     with open(out / "buttons.pdf", "wb") as f:
         writer.write(f)
 
