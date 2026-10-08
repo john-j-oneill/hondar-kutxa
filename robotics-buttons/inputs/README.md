@@ -12,8 +12,8 @@ Navy names and orange coach labels, picked from the logo. Roster: 16 people
 (both Johns, both Lauras), plus 2 blank spares to fill the last page.
 
 ```sh
-python make_buttons.py inputs/dinonuggets-26460.csv \
-    --logo inputs/dinonuggets-26460-logo.webp \
+python make_buttons.py inputs/dino-nuggets-2026.csv \
+    --logo inputs/dino-nuggs-logo.png \
     --color "#13213d" --coach-color "#d9661c" --blanks 2 \
     --out out/dinonuggets-26460
 ```
@@ -24,8 +24,8 @@ Dark navy-purple names and purple coach labels (darker than the logo's purple
 so small text stays readable). Roster: 12 people, plus 6 blank spares.
 
 ```sh
-python make_buttons.py inputs/midnight-snackers-21986.csv \
-    --logo inputs/midnight-snackers-21986-logo.webp \
+python make_buttons.py inputs/mid-snack-2026.csv \
+    --logo inputs/mid-snack-logo.png \
     --color "#1c1b3a" --coach-color "#6a4c93" --blanks 6 \
     --out out/midnight-snackers-21986
 ```
