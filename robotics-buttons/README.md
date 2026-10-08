@@ -52,9 +52,10 @@ White background to save ink, with a thin grey ring at the cut line.
 - **Coaches/mentors**: the same, plus their role (`COACH`, `MENTOR`) arced
   along the bottom between two stars, with the role and pill in red so
   they're easy to spot.
-- If you don't pass `--logo`, a gear is drawn as a stand-in. A PNG with a
-  transparent background looks best. The logo gets the top third of the
-  button, so it's the place for the team name and number.
+- If you don't pass `--logo`, a gear is drawn as a stand-in. A PNG (or
+  WebP) with a transparent background looks best. The logo gets the top
+  part of the button: a round or square logo is about 1.3 in across, a wide
+  one about 1.45 in wide. It's the place for the team name and number.
 
 ## Sizes
 

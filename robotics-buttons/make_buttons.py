@@ -159,7 +159,9 @@ def button_svg(person, cfg, fonts):
             el.append(star(rr * math.cos(a), rr * math.sin(a), 6.5 * u, accent))
 
     # logo
-    lw, lh, ly = 104 * u, 56 * u, -42 * u
+    # a box over the top of the safe area: wide logos fill its width, square
+    # or round ones its height
+    lw, lh, ly = 104 * u, 96 * u, -48 * u
     if cfg.logo_data:
         el.append(f'<image x="{-lw / 2:.2f}" y="{ly - lh / 2:.2f}" width="{lw:.2f}" '
                   f'height="{lh:.2f}" preserveAspectRatio="xMidYMid meet" '
@@ -168,7 +170,7 @@ def button_svg(person, cfg, fonts):
         el.append(f'<g transform="translate(0 {ly:.2f})">{gear(lh / 2, fill=ink)}</g>')
 
     # name
-    name_y = 18 * u
+    name_y = (20 if coach else 24) * u  # coaches: leave room for the role label
     max_w = 2 * math.sqrt(safe_r ** 2 - (name_y + 4 * u) ** 2) * 0.86
     lines, size = fit_name(bold, person["name"], max_w, 40 * u, 26 * u)
     cap = bold.cap_height(size)
@@ -279,7 +281,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("csv", help="CSV with columns name, pronouns, role (optional: copies)")
-    p.add_argument("--logo", help="PNG (or JPG/SVG) logo; a gear is drawn if omitted")
+    p.add_argument("--logo", help="PNG (or JPG/WebP/SVG) logo; a gear is drawn if omitted")
     p.add_argument("--color", default="#1a1a1a", help="text colour (default near-black)")
     p.add_argument("--coach-color", default="#c8102e", help="colour of the COACH label and pronoun pill on coach buttons")
     p.add_argument("--cut-line", default="#999999", help="colour of the cut ring (default grey)")
@@ -297,7 +299,7 @@ def main():
     if cfg.logo:
         logo = Path(cfg.logo)
         mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-                ".svg": "image/svg+xml"}.get(logo.suffix.lower(), "image/png")
+                ".webp": "image/webp", ".svg": "image/svg+xml"}.get(logo.suffix.lower(), "image/png")
         cfg.logo_data = f"data:{mime};base64," + base64.b64encode(logo.read_bytes()).decode()
     else:
         cfg.logo_data = None
