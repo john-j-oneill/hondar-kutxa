@@ -5,6 +5,9 @@ print-ready PDF with them laid out on letter (or A4) paper.
 
 ![Example page](example.png)
 
+Our teams' logos and the exact command used for each are in
+[`inputs/`](inputs/). Rosters go there too, but git ignores them.
+
 ## Setup
 
 Python 3.9+:

@@ -1,0 +1,6 @@
+# Rosters have kids' names and pronouns: keep them out of git.
+*.csv
+*.tsv
+*.xlsx
+*.xls
+*.ods
