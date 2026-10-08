@@ -4,7 +4,7 @@
 Reads a CSV of names, pronouns and roles, writes one SVG per button and lays
 them all out on printable pages in a single PDF.
 
-    python make_buttons.py people.csv --logo logo.png --team "Team 1234"
+    python make_buttons.py people.csv --logo logo.png
 
 All text is converted to vector outlines (no fonts needed to view or print the
 SVGs), and the logo is embedded, so every SVG is self-contained.
@@ -101,34 +101,6 @@ class Font:
         return "\n".join(out)
 
 
-# --- colours -------------------------------------------------------------------
-
-def hex_rgb(c):
-    c = c.lstrip("#")
-    if len(c) == 3:
-        c = "".join(ch * 2 for ch in c)
-    return tuple(int(c[i:i + 2], 16) / 255 for i in (0, 2, 4))
-
-
-def luminance(c):
-    def lin(v):
-        return v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4
-    r, g, b = (lin(v) for v in hex_rgb(c))
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b
-
-
-def ink_on(bg):
-    """Black or white, whichever reads better on bg."""
-    return "#1a1a1a" if luminance(bg) > 0.4 else "#ffffff"
-
-
-def shade(c, f):
-    """Darken (f<0) or lighten (f>0) a colour."""
-    rgb = hex_rgb(c)
-    rgb = [v + (1 - v) * f if f > 0 else v * (1 + f) for v in rgb]
-    return "#" + "".join(f"{round(v * 255):02x}" for v in rgb)
-
-
 # --- the button ---------------------------------------------------------------
 
 def gear(radius, teeth=10, fill="#fff"):
@@ -163,50 +135,31 @@ def fit_name(font, name, max_w, max_size, min_two_line):
 def button_svg(person, cfg, fonts):
     bold, medium = fonts
     coach = person["role"].lower() not in STUDENT_ROLES
-    bg = cfg.coach_color if coach else cfg.color
-    accent = cfg.coach_accent if coach else cfg.accent
-    ink = ink_on(bg)
-    accent_ink = ink_on(accent)
+    ink = cfg.color
+    accent = cfg.coach_color if coach else cfg.color
 
     cut_r = cfg.cut * PT / 2
     face_r = cfg.face * PT / 2
     safe_r = cfg.safe * PT / 2
     u = safe_r / 97.2  # layout below was tuned for a 2.7in safe area
 
-    el = []
-    # background bleeds all the way to the cut line
-    el.append(f'<circle r="{cut_r:.2f}" fill="{bg}"/>')
-    # the wrap-around edge: a ring in the accent colour, starting just inside
-    # the visible face so a slightly off-centre press still looks deliberate
-    ring_in = safe_r + (face_r - safe_r) * 0.35
-    el.append(f'<circle r="{(cut_r + ring_in) / 2:.2f}" fill="none" stroke="{accent}" '
-              f'stroke-width="{cut_r - ring_in:.2f}"/>')
-    el.append(f'<circle r="{ring_in - 1.2 * u:.2f}" fill="none" stroke="{ink}" '
-              f'stroke-opacity="0.35" stroke-width="{0.8 * u:.2f}"/>')
+    # white background (saves ink); a thin ring marks where to cut
+    el = [f'<circle r="{cut_r:.2f}" fill="#fff"/>',
+          f'<circle r="{cut_r - 0.25:.2f}" fill="none" stroke="{cfg.cut_line}" stroke-width="0.5"/>']
 
-    # top arc: team name
-    arc_size = 11.5 * u
-    arc_r = safe_r - 13 * u
-    if cfg.team:
-        el.append(f'<g fill="{ink}">{medium.arc(cfg.team.upper(), arc_size, arc_r, True, 0.08)}</g>')
-
-    # bottom arc: role for coaches, optional tagline for students
-    bottom = person["role"].upper() if coach else (cfg.tagline or "").upper()
-    if bottom:
-        if coach:
-            size, sp = 15 * u, 0.18
-            el.append(f'<g fill="{accent}">{bold.arc(bottom, size, safe_r - 4 * u, False, sp)}</g>')
-            # stars either side of the label
-            span = (bold.width(bottom, size) + sp * size * (len(bottom) - 1)) / (safe_r - 4 * u)
-            for sgn in (-1, 1):
-                a = math.pi / 2 + sgn * (span / 2 + 0.17)
-                r = safe_r - 4 * u - bold.cap_height(size) / 2
-                el.append(star(r * math.cos(a), r * math.sin(a), 6.5 * u, accent))
-        else:
-            el.append(f'<g fill="{ink}">{medium.arc(bottom, arc_size, safe_r - 5 * u, False, 0.08)}</g>')
+    # coaches: role arced along the bottom between two stars
+    if coach:
+        label = person["role"].upper()
+        size, sp, r = 15 * u, 0.18, safe_r - 4 * u
+        el.append(f'<g fill="{accent}">{bold.arc(label, size, r, False, sp)}</g>')
+        span = (bold.width(label, size) + sp * size * (len(label) - 1)) / r
+        for sgn in (-1, 1):
+            a = math.pi / 2 + sgn * (span / 2 + 0.17)
+            rr = r - bold.cap_height(size) / 2
+            el.append(star(rr * math.cos(a), rr * math.sin(a), 6.5 * u, accent))
 
     # logo
-    lw, lh, ly = 74 * u, 40 * u, -36 * u
+    lw, lh, ly = 104 * u, 56 * u, -42 * u
     if cfg.logo_data:
         el.append(f'<image x="{-lw / 2:.2f}" y="{ly - lh / 2:.2f}" width="{lw:.2f}" '
                   f'height="{lh:.2f}" preserveAspectRatio="xMidYMid meet" '
@@ -215,7 +168,7 @@ def button_svg(person, cfg, fonts):
         el.append(f'<g transform="translate(0 {ly:.2f})">{gear(lh / 2, fill=ink)}</g>')
 
     # name
-    name_y = 14 * u
+    name_y = 18 * u
     max_w = 2 * math.sqrt(safe_r ** 2 - (name_y + 4 * u) ** 2) * 0.86
     lines, size = fit_name(bold, person["name"], max_w, 40 * u, 26 * u)
     cap = bold.cap_height(size)
@@ -230,7 +183,7 @@ def button_svg(person, cfg, fonts):
         el.append(f'<path fill="{ink}" d="{bold.line(lines[1], size, 0, baseline)}"/>')
     text_bottom = baseline + 0.2 * size  # allow for descenders
 
-    # pronouns, in a pill just under the name
+    # pronouns, in an outlined pill just under the name
     if person["pronouns"]:
         text = person["pronouns"]
         psize = 15 * u
@@ -239,9 +192,11 @@ def button_svg(person, cfg, fonts):
         pmax = 2 * math.sqrt(max(safe_r ** 2 - (py + 12 * u) ** 2, 0)) * 0.78
         psize = min(psize, psize * pmax / medium.width(text, psize))
         pw = medium.width(text, psize) + 18 * u
+        sw = 1.4 * u
         el.append(f'<rect x="{-pw / 2:.2f}" y="{py - ph / 2:.2f}" width="{pw:.2f}" '
-                  f'height="{ph:.2f}" rx="{ph / 2:.2f}" fill="{accent}"/>')
-        el.append(f'<path fill="{accent_ink}" '
+                  f'height="{ph:.2f}" rx="{ph / 2:.2f}" fill="none" stroke="{accent}" '
+                  f'stroke-width="{sw:.2f}"/>')
+        el.append(f'<path fill="{accent}" '
                   f'd="{medium.line(text, psize, 0, py + medium.cap_height(psize) / 2)}"/>')
 
     if cfg.guides:
@@ -294,9 +249,6 @@ def page_svg(buttons, paper, cut, slots):
     body = []
     for els, (x, y) in zip(buttons, slots):
         body.append(wrap_svg(els, cut, x * PT, y * PT))
-        # hairline cut guide in case the background is white
-        body.append(f'<circle cx="{(x + cut / 2) * PT:.2f}" cy="{(y + cut / 2) * PT:.2f}" '
-                    f'r="{cut * PT / 2:.2f}" fill="none" stroke="#999" stroke-width="0.3"/>')
     return ('<svg xmlns="http://www.w3.org/2000/svg" '
             'xmlns:xlink="http://www.w3.org/1999/xlink" '
             f'width="{pw}in" height="{ph}in" viewBox="0 0 {pw * PT} {ph * PT}">\n'
@@ -328,12 +280,9 @@ def main():
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("csv", help="CSV with columns name, pronouns, role (optional: copies)")
     p.add_argument("--logo", help="PNG (or JPG/SVG) logo; a gear is drawn if omitted")
-    p.add_argument("--team", default="", help="text arced along the top, e.g. 'Team 1234 RoboRaiders'")
-    p.add_argument("--tagline", default="", help="text arced along the bottom of student buttons, e.g. '2026 Season'")
-    p.add_argument("--color", default="#1f4e9c", help="student background colour")
-    p.add_argument("--accent", default="#ffc72c", help="student ring and pronoun pill colour")
-    p.add_argument("--coach-color", default="#1a1a1a", help="coach background colour")
-    p.add_argument("--coach-accent", default="#ffc72c", help="coach ring, label and pill colour")
+    p.add_argument("--color", default="#1a1a1a", help="text colour (default near-black)")
+    p.add_argument("--coach-color", default="#c8102e", help="colour of the COACH label and pronoun pill on coach buttons")
+    p.add_argument("--cut-line", default="#999999", help="colour of the cut ring (default grey)")
     p.add_argument("--cut", type=float, default=3.5, help="cut circle diameter, inches (default 3.5)")
     p.add_argument("--face", type=float, default=3.0, help="visible button face diameter, inches (default 3.0)")
     p.add_argument("--safe", type=float, default=2.7, help="keep text and logo inside this diameter (default 2.7)")
