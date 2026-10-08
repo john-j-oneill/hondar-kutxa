@@ -74,6 +74,20 @@ test print; leave it off for the real run.
 If your press is a different size, measure the cut circle and the finished
 button and pass those; the layout scales to match.
 
+## Page layout
+
+The script fits as many circles on a page as it can while keeping at least
+`--gap` between them and `--margin` from the paper edge, then spreads them
+out to use the leftover space. On letter paper at 3.5 in, three rows only
+leave half an inch of height to share, so it staggers the rows to make room
+between them:
+
+| Paper | `--gap` | Per page | Actual space between circles |
+| --- | --- | --- | --- |
+| letter | 0.1 (default) | 6 | about 0.11 in |
+| letter | 0.25 | 5 (2-1-2) | about 0.66 in |
+| A4 | 0.1 | 6 | about 0.37 in |
+
 ## Other options
 
 ```
@@ -81,8 +95,9 @@ button and pass those; the layout scales to match.
 --coach-color                   coach label and pill colour (default red)
 --cut-line                      cut ring colour (default grey)
 --blanks N                      add N spares with no name (for new members or mistakes)
---paper letter|a4               page size (6 buttons per page either way at 3.5 in)
---margin / --gap                page margin and space between circles, inches
+--paper letter|a4               page size
+--margin                        keep clear of the paper edge, inches (default 0.25)
+--gap                           minimum space between circles, inches (default 0.1)
 --out DIR                       output folder
 ```
 

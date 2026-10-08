@@ -233,17 +233,67 @@ def wrap_svg(elements, size_in, x=None, y=None):
 
 # --- page layout ------------------------------------------------------------
 
+def spread(n, lo, hi):
+    """n evenly spaced positions from lo to hi (the middle if n is 1)."""
+    return [(lo + hi) / 2] if n == 1 else [lo + i * (hi - lo) / (n - 1) for i in range(n)]
+
+
+def min_gap(centres, cut):
+    return min((math.dist(a, b) - cut for i, a in enumerate(centres)
+                for b in centres[i + 1:]), default=math.inf)
+
+
+def candidates(pw, ph, cut, margin):
+    """Ways to arrange buttons on a page, as lists of centres.
+
+    Rows are spread over the page height. Within that: a plain grid, rows
+    of the same count pushed alternately left and right (staggering lets the
+    rows sit closer than one diameter apart, which buys space between them),
+    or rows alternating n and n-1 buttons, like a honeycomb.
+    """
+    r = cut / 2
+    x0, x1, y0, y1 = margin + r, pw - margin - r, margin + r, ph - margin - r
+    if x1 < x0 or y1 < y0:
+        return
+    max_cols = int((x1 - x0) // cut) + 1
+    max_rows = int((y1 - y0) // (cut * 0.5)) + 1  # staggered rows can overlap
+    for rows in range(1, max_rows + 1):
+        ys = spread(rows, y0, y1)
+        for cols in range(1, max_cols + 2):
+            yield [(x, y) for y in ys for x in spread(cols, x0, x1)]
+            if rows > 1 and cols > 1:
+                # honeycomb: n, n-1, n, ...
+                inner = spread(cols - 1, x0 + (x1 - x0) / (2 * (cols - 1)),
+                               x1 - (x1 - x0) / (2 * (cols - 1)))
+                yield [(x, y) for i, y in enumerate(ys)
+                       for x in (spread(cols, x0, x1) if i % 2 == 0 else inner)]
+            if rows > 1:
+                # staggered: same count each row, alternately shifted
+                for k in range(1, 41):
+                    pitch = cut + (x1 - x0 - (cols - 1) * cut) * k / 40 if cols > 1 else 0
+                    shift = (x1 - x0) - (cols - 1) * pitch
+                    if shift <= 0:
+                        break
+                    yield [(x0 + c * pitch + (shift if i % 2 else 0), y)
+                           for i, y in enumerate(ys) for c in range(cols)]
+
+
 def layout(paper, cut, margin, gap):
+    """Top-left corners of the button slots on a page: the most buttons that
+    keep at least `gap` between neighbours, then the most space between them."""
     pw, ph = paper
-    cols = int((pw - 2 * margin + gap) // (cut + gap))
-    rows = int((ph - 2 * margin + gap) // (cut + gap))
-    if cols < 1 or rows < 1:
+    best = None
+    for centres in candidates(pw, ph, cut, margin):
+        g = min_gap(centres, cut)
+        if g < gap - 1e-9:
+            continue
+        key = (len(centres), round(g, 4))
+        if best is None or key > best[0]:
+            best = (key, centres)
+    if best is None:
         raise SystemExit("A button doesn't fit on the page with those margins.")
-    # centre the grid on the page
-    x0 = (pw - (cols * cut + (cols - 1) * gap)) / 2
-    y0 = (ph - (rows * cut + (rows - 1) * gap)) / 2
-    return [(x0 + c * (cut + gap), y0 + r * (cut + gap))
-            for r in range(rows) for c in range(cols)]
+    centres = sorted(best[1], key=lambda c: (round(c[1], 3), c[0]))
+    return [(x - cut / 2, y - cut / 2) for x, y in centres]
 
 
 def page_svg(buttons, paper, cut, slots):
@@ -289,8 +339,11 @@ def main():
     p.add_argument("--face", type=float, default=3.0, help="visible button face diameter, inches (default 3.0)")
     p.add_argument("--safe", type=float, default=2.7, help="keep text and logo inside this diameter (default 2.7)")
     p.add_argument("--paper", choices=PAPER, default="letter")
-    p.add_argument("--margin", type=float, default=0.25, help="page margin, inches")
-    p.add_argument("--gap", type=float, default=0.0, help="space between buttons, inches")
+    p.add_argument("--margin", type=float, default=0.25,
+                   help="keep everything this far from the paper edge, inches (default 0.25, fine for most printers)")
+    p.add_argument("--gap", type=float, default=0.1,
+                   help="at least this much space between circles, inches (default 0.1); "
+                        "a bigger gap may fit fewer per page")
     p.add_argument("--blanks", type=int, default=0, help="extra name-less spares to add (student style)")
     p.add_argument("--guides", action="store_true", help="draw face (pink) and safe-area (blue) circles for proofing")
     p.add_argument("--out", default="out", help="output folder (default ./out)")
