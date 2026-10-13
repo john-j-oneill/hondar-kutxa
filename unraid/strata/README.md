@@ -206,8 +206,20 @@ otherwise.
 
 ## Changing things later
 
-- **Update Strata:** run `build.sh` again, then restart the container. The
-  model on `/data` is kept.
+- **Update Strata:** there's nothing to pull. The image is built locally,
+  so updating means rebuilding it:
+  1. `bash /mnt/cache/appdata/strata/build.sh`. This fetches the latest
+     source and builds a new `strata:latest`. The old container keeps
+     running meanwhile.
+  2. *Docker → strata → Edit → Apply*, with no changes. A plain restart
+     keeps running the **old** image, because a container is tied to the
+     image it was created from. *Apply* recreates it from the new one.
+  3. `docker image prune -f` frees the old image (~15 GB). `build.sh`
+     can't remove it while the old container still uses it.
+
+  The model, pack and config on `/data` are kept, so nothing is downloaded
+  again, and *Reinstall* stays `0`. Use *Reinstall* = `1` only if the
+  release notes say to re-run setup. It still won't re-download the model.
 - **Context / vision / API key:** change the value, set *Reinstall* to `1`,
   apply, wait for it to come up, then set *Reinstall* back to `0`.
 - **Another model:** change *Model size* / *Model family*. A model that isn't
