@@ -22,17 +22,24 @@ curl -fsSL "https://github.com/Niko1221/Strata/archive/$REF.tar.gz" \
 # Unraid's docker has no buildx plugin, so plain `docker build` falls back to
 # the legacy builder and fails. The official docker:cli image ships buildx;
 # run the build from it against the host's daemon instead.
-build_args=(build -t strata:latest --build-arg "CUDA_ARCHITECTURES=$ARCHS")
-if docker buildx version >/dev/null 2>&1; then
-  docker "${build_args[@]}" "$SRC"
-else
-  docker run --rm \
-    -v /var/run/docker.sock:/var/run/docker.sock \
-    -v "$SRC":/src:ro \
-    docker:cli "${build_args[@]}" /src
-fi
+docker_bk() {
+  if docker buildx version >/dev/null 2>&1; then
+    docker "$@"
+  else
+    docker run --rm \
+      -v /var/run/docker.sock:/var/run/docker.sock \
+      -v "$SRC":/src:ro \
+      docker:cli "$@"
+  fi
+}
+src_path="$SRC"
+docker buildx version >/dev/null 2>&1 || src_path=/src
+docker_bk build -t strata:latest --build-arg "CUDA_ARCHITECTURES=$ARCHS" "$src_path"
 
-# drop the previous strata image and the build cache
+# Clear the build cache (intermediate layers, often GBs). It belongs to the
+# same BuildKit as the build, hence docker_bk. The previous strata image
+# can't go yet: the running container still uses it.
+docker_bk builder prune -af
 docker image prune -f
-docker builder prune -f >/dev/null 2>&1 || true
-echo "Built strata:latest. Start or restart the container in Unraid's Docker tab."
+echo "Built strata:latest. Recreate the container (Docker > strata > Edit > Apply;"
+echo "a restart keeps the old image), then run: docker image prune -f"

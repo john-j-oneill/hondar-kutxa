@@ -34,7 +34,7 @@ Space on the 512 GB NVMe:
 | --- | ---: |
 | Model + pack + MTP layer (`/mnt/cache/appdata/strata`) | ~80 GB per model |
 | `strata:latest` image (CUDA 13 devel base + engine) | ~15 GB |
-| Build cache during `build.sh` (pruned at the end) | a few GB |
+| Build cache during `build.sh` (cleared at the end) | a few GB |
 | Source checkout (`/mnt/cache/appdata/strata-src`) | < 50 MB |
 
 **docker.img is 20 GB by default, and that's too small** for the image plus
@@ -217,8 +217,10 @@ otherwise.
   2. *Docker → strata → Edit → Apply*, with no changes. A plain restart
      keeps running the **old** image, because a container is tied to the
      image it was created from. *Apply* recreates it from the new one.
-  3. `docker image prune -f` frees the old image (~15 GB). `build.sh`
-     can't remove it while the old container still uses it.
+  3. `docker image prune -f` removes the old image. Don't expect much
+     space back: the CUDA base, most of the ~15 GB, is shared with the new
+     image. Only the old engine's own layers go, and Docker often reports
+     those as `0B`. `docker system df` shows what's really in use.
 
   The model, pack and config on `/data` are kept, so nothing is downloaded
   again, and *Reinstall* stays `0`. Use *Reinstall* = `1` only if the
