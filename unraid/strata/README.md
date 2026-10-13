@@ -208,9 +208,12 @@ otherwise.
 
 - **Update Strata:** there's nothing to pull. The image is built locally,
   so updating means rebuilding it:
-  1. `bash /mnt/cache/appdata/strata/build.sh`. This fetches the latest
-     source and builds a new `strata:latest`. The old container keeps
-     running meanwhile.
+  1. `STRATA_REF=v0.1.43.1 bash /mnt/cache/appdata/strata/build.sh`, with
+     the [latest release tag](https://github.com/Niko1221/Strata/tags).
+     Leave `STRATA_REF` out to build `main`, but upstream lands dozens of
+     commits a day there, so a release tag is the safer pick. The old
+     container keeps running meanwhile. To see what you're on now:
+     `docker exec strata cat /opt/strata/engine/BUILD.json`.
   2. *Docker → strata → Edit → Apply*, with no changes. A plain restart
      keeps running the **old** image, because a container is tied to the
      image it was created from. *Apply* recreates it from the new one.

@@ -3,6 +3,7 @@
 #
 #   bash build.sh            # RTX 50 only (sm_120: the RTX 5060 Ti)
 #   bash build.sh "89;120"   # add RTX 40, etc.
+#   STRATA_REF=v0.1.43.1 bash build.sh   # a release tag instead of main
 #
 # Run it again to pick up a newer Strata; the model on the /data volume is kept.
 set -euo pipefail
@@ -14,7 +15,7 @@ REF="${STRATA_REF:-main}"
 echo "Fetching Strata ($REF) into $SRC"
 rm -rf "$SRC"
 mkdir -p "$SRC"
-curl -fsSL "https://github.com/Niko1221/Strata/archive/refs/heads/$REF.tar.gz" \
+curl -fsSL "https://github.com/Niko1221/Strata/archive/$REF.tar.gz" \
   | tar xz -C "$SRC" --strip-components=1
 
 # Upstream's Dockerfile uses a RUN heredoc, which only BuildKit understands.
