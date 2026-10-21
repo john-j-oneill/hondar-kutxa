@@ -309,18 +309,64 @@ def page_svg(buttons, paper, cut, slots):
 
 # --- main --------------------------------------------------------------------
 
+ROSTER_COLUMNS = ["team", "name", "pronouns", "role", "copies"]
+
+
 def read_people(path):
+    """Rows of the roster. A header row is optional: without one the columns
+    are taken as team, name, pronouns, role (or name, pronouns, role if there
+    are only three)."""
     with open(path, newline="", encoding="utf-8-sig") as f:
-        rows = list(csv.DictReader(f))
+        rows = [r for r in csv.reader(f) if any(c.strip() for c in r)]
+    if not rows:
+        return []
+    header = [c.strip().lower() for c in rows[0]]
+    if "name" in header:
+        rows = rows[1:]
+    else:
+        width = max(len(r) for r in rows)
+        header = ROSTER_COLUMNS[:width] if width >= 4 else ROSTER_COLUMNS[1:1 + width]
     people = []
-    for row in rows:
-        row = {(k or "").strip().lower(): (v or "").strip() for k, v in row.items()}
+    for r in rows:
+        row = {k: v.strip() for k, v in zip(header, r)}
         if not row.get("name"):
             continue
         copies = int(row.get("copies") or 1)
-        people += [{"name": row["name"], "pronouns": row.get("pronouns", ""),
-                    "role": row.get("role", "")}] * copies
+        people += [{"team": row.get("team", ""), "name": row["name"],
+                    "pronouns": row.get("pronouns", ""), "role": row.get("role", "")}] * copies
     return people
+
+
+def read_teams(path):
+    """team number -> {color, coach_color, ...} from the teams file."""
+    if not path or not Path(path).exists():
+        return {}
+    with open(path, newline="", encoding="utf-8-sig") as f:
+        return {row["team"].strip(): {k: (v or "").strip() for k, v in row.items()}
+                for row in csv.DictReader(f) if (row.get("team") or "").strip()}
+
+
+def logo_data(path):
+    mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+            ".webp": "image/webp", ".svg": "image/svg+xml"}.get(path.suffix.lower(), "image/png")
+    return f"data:{mime};base64," + base64.b64encode(path.read_bytes()).decode()
+
+
+def team_config(cfg, team, teams, logo_dir):
+    """The settings for one team's buttons: its colours from the teams file
+    and its logo from <logo_dir>/<team>.png, falling back to the command line."""
+    t = argparse.Namespace(**vars(cfg))
+    info = teams.get(team, {})
+    t.color = info.get("color") or cfg.color
+    t.coach_color = info.get("coach_color") or cfg.coach_color
+    found = [p for ext in (".png", ".webp", ".jpg", ".jpeg", ".svg")
+             for p in [logo_dir / f"{team}{ext}"] if p.exists()] if team else []
+    if found:
+        t.logo_data = logo_data(found[0])
+    elif team:
+        print(f"warning: no logo for team {team} in {logo_dir}, using "
+              + ("--logo" if cfg.logo else "a gear"))
+    return t
 
 
 def slug(s):
@@ -330,8 +376,12 @@ def slug(s):
 def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("csv", help="CSV with columns name, pronouns, role (optional: copies)")
-    p.add_argument("--logo", help="PNG (or JPG/WebP/SVG) logo; a gear is drawn if omitted")
+    p.add_argument("csv", help="CSV with columns team (optional), name, pronouns, role (optional: copies)")
+    p.add_argument("--logo", help="PNG (or JPG/WebP/SVG) logo; a gear is drawn if omitted. "
+                                  "Rows with a team number use <team>.png from --teams' folder instead")
+    p.add_argument("--teams", default=str(HERE / "inputs" / "teams.csv"),
+                   help="CSV of team, name, color, coach_color; logos sit next to it as <team>.png "
+                        "(default inputs/teams.csv)")
     p.add_argument("--color", default="#1a1a1a", help="text colour (default near-black)")
     p.add_argument("--coach-color", default="#c8102e", help="colour of the COACH label and pronoun pill on coach buttons")
     p.add_argument("--cut-line", default="#999999", help="colour of the cut ring (default grey)")
@@ -344,33 +394,37 @@ def main():
     p.add_argument("--gap", type=float, default=0.1,
                    help="at least this much space between circles, inches (default 0.1); "
                         "a bigger gap may fit fewer per page")
-    p.add_argument("--blanks", type=int, default=0, help="extra name-less spares to add (student style)")
+    p.add_argument("--blanks", type=int, default=0,
+                   help="extra name-less spares to add (student style), per team if the roster has teams")
     p.add_argument("--guides", action="store_true", help="draw face (pink) and safe-area (blue) circles for proofing")
     p.add_argument("--out", default="out", help="output folder (default ./out)")
     cfg = p.parse_args()
 
-    if cfg.logo:
-        logo = Path(cfg.logo)
-        mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-                ".webp": "image/webp", ".svg": "image/svg+xml"}.get(logo.suffix.lower(), "image/png")
-        cfg.logo_data = f"data:{mime};base64," + base64.b64encode(logo.read_bytes()).decode()
-    else:
-        cfg.logo_data = None
+    cfg.logo_data = logo_data(Path(cfg.logo)) if cfg.logo else None
+    teams = read_teams(cfg.teams)
+    logo_dir = Path(cfg.teams).parent
 
     fonts = (Font(HERE / "fonts" / "Fredoka-700.ttf"), Font(HERE / "fonts" / "Fredoka-500.ttf"))
     people = read_people(cfg.csv)
-    people += [{"name": "", "pronouns": "", "role": ""}] * cfg.blanks
     if not people:
-        raise SystemExit("No names found in the CSV (it needs a 'name' column).")
+        raise SystemExit("No names found in the CSV.")
+    # group by team (in order of first appearance) so each team's buttons sit
+    # together on the sheet, with that team's spares after them
+    order = list(dict.fromkeys(p["team"] for p in people))
+    people = [p for team in order for p in
+              [q for q in people if q["team"] == team]
+              + [{"team": team, "name": "", "pronouns": "", "role": ""}] * cfg.blanks]
+    configs = {team: team_config(cfg, team, teams, logo_dir) for team in order}
 
     out = Path(cfg.out)
     (out / "svg").mkdir(parents=True, exist_ok=True)
     buttons, used = [], {}
     for person in people:
         # a blank spare is the student design with an invisible name
-        els = button_svg(person if person["name"] else {**person, "name": " "}, cfg, fonts)
+        els = button_svg(person if person["name"] else {**person, "name": " "},
+                         configs[person["team"]], fonts)
         buttons.append(els)
-        base = slug(person["name"] or "blank")
+        base = slug(f'{person["team"]} {person["name"] or "blank"}')
         used[base] = used.get(base, 0) + 1
         name = base if used[base] == 1 else f"{base}-{used[base]}"
         (out / "svg" / f"{name}.svg").write_text(wrap_svg(els, cfg.cut), encoding="utf-8")
