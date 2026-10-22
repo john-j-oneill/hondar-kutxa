@@ -1,31 +1,41 @@
 # Inputs
 
-Team logos and the settings used for each team's buttons. Put the roster CSVs
-here too: `.gitignore` keeps spreadsheets in this folder out of git, since
-they list the kids' names and pronouns.
+Team logos and colours, plus the rosters (which git ignores: `.gitignore`
+keeps spreadsheets in this folder out of the repo, since they list the kids'
+names and pronouns).
 
-Run these from `robotics-buttons/`.
+- `<team number>.png`: each team's logo, e.g. `26460.png`.
+- `teams.csv`: each team's text colour and coach colour. This one *is*
+  committed (it's the one CSV exception in `.gitignore`).
 
-## Dinonuggets 26460 (2026)
+| Team | Name | Names | Coach label and pill |
+| --- | --- | --- | --- |
+| 26460 | Dinonuggets | navy `#13213d` | orange `#d9661c` |
+| 21986 | Midnight Snackers | dark navy-purple `#1c1b3a` | purple `#6a4c93`, darker than the logo's so small text stays readable |
 
-Navy names and orange coach labels, picked from the logo. Roster: 16 people
-(both Johns, both Lauras), plus 2 blank spares to fill the last page.
+## Rosters
 
-```sh
-python make_buttons.py inputs/dino-nuggets-2026.csv \
-    --logo inputs/dino-nuggs-logo.png \
-    --color "#13213d" --coach-color "#d9661c" --blanks 2 \
-    --out out/dinonuggets-26460
+Give each row a team number and the script picks that team's logo and
+colours, so one sheet can mix teams:
+
+```csv
+team,name,pronouns,role
+26460,Robin,she/her,Student
+21986,Taylor,they/them,Student
 ```
 
-## Midnight Snackers 21986 (2026)
+The header row is optional; without one the columns are read as team, name,
+pronouns, role. Buttons are grouped by team on the page.
 
-Dark navy-purple names and purple coach labels (darker than the logo's purple
-so small text stays readable). Roster: 12 people, plus 6 blank spares.
+Run from `robotics-buttons/`:
 
 ```sh
-python make_buttons.py inputs/mid-snack-2026.csv \
-    --logo inputs/mid-snack-logo.png \
-    --color "#1c1b3a" --coach-color "#6a4c93" --blanks 6 \
-    --out out/midnight-snackers-21986
+python make_buttons.py inputs/additional-2026.csv --blanks 1
 ```
+
+`--blanks N` adds N spares *per team*.
+
+## 2026 runs
+
+- First print: Dinonuggets 16 people + 2 spares, Midnight Snackers 12 + 6.
+- Additional (October): 2 more per team, plus 1 spare each, on one sheet.

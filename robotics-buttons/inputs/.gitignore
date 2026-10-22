@@ -4,3 +4,5 @@
 *.xlsx
 *.xls
 *.ods
+# ...except the team colour settings, which are safe
+!teams.csv

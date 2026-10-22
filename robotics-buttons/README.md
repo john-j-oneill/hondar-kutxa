@@ -5,8 +5,8 @@ print-ready PDF with them laid out on letter (or A4) paper.
 
 ![Example page](example.png)
 
-Our teams' logos and the exact command used for each are in
-[`inputs/`](inputs/). Rosters go there too, but git ignores them.
+Our teams' logos and colours are in [`inputs/`](inputs/). Rosters go there
+too, but git ignores them.
 
 ## Setup
 
@@ -23,6 +23,9 @@ install GTK, or run this under WSL.)
 ## Use
 
 1. Make a CSV like [`example.csv`](example.csv). Columns:
+   - `team` (optional): team number. Each row then gets that team's logo
+     (`inputs/<team>.png`) and colours (`inputs/teams.csv`), so one sheet can
+     mix teams. See [`inputs/`](inputs/).
    - `name`: what goes on the button. Long names shrink, then wrap to two lines.
    - `pronouns`: shown in a pill under the name. Leave blank to skip it.
    - `role`: blank or `student` for kids. Anything else (`coach`, `mentor`,
@@ -97,7 +100,8 @@ between them:
 --color                         text colour (hex, default near-black)
 --coach-color                   coach label and pill colour (default red)
 --cut-line                      cut ring colour (default grey)
---blanks N                      add N spares with no name (for new members or mistakes)
+--blanks N                      add N spares with no name (per team if the roster has teams)
+--teams FILE                    team colours file; logos sit next to it (default inputs/teams.csv)
 --paper letter|a4               page size
 --margin                        keep clear of the paper edge, inches (default 0.25)
 --gap                           minimum space between circles, inches (default 0.1)
